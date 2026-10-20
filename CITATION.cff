@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this demonstration, please cite its accompanying technical note or versioned archive once published."
+title: "Analytical Oblique Cutting: Quartic Reduction and Interactive 3D Explorer"
+type: software
+authors:
+  - family-names: Ganji
+    given-names: Morteza
+    orcid: "https://orcid.org/0009-0003-3601-4308"
+version: "0.1.0-draft"
