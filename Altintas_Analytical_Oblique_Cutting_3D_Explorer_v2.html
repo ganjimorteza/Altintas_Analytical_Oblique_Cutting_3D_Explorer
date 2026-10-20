@@ -1,0 +1,2018 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Offline interactive 3D visualization of oblique-cutting geometry, velocities and a geometric force-sphere construction based on Altintas (2012), Chapter 2.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Analytical Oblique Cutting — 3D Geometry, Quartic Solver and Cutting Forces</title>
+<style>:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html > body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) > body {
+  padding: 12px;
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive > .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align="right"]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align="center"]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget > :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock's pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls > .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(> .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel > [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel > [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host's design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+/* Keep authored mockup button styles out of the shared carousel chrome. */
+.viz-carousel-controls button,
+.viz-carousel-picker > summary {
+  display: flex !important;
+  height: auto !important;
+  min-height: 30px;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px;
+  padding: 0 6px !important;
+  -webkit-app-region: no-drag;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: inherit !important;
+  background: transparent !important;
+  font: inherit !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls > button,
+.viz-carousel-picker > summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls > button {
+  --icon-size: 16px;
+  width: 30px !important;
+  padding: 0 !important;
+}
+
+.viz-carousel-picker > summary {
+  padding-inline: 12px !important;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls > button > svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls > button::before,
+.viz-carousel-picker > summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: "";
+  pointer-events: none;
+}
+
+.viz-carousel-controls > button:hover::before,
+.viz-carousel-picker > summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls > button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker > summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options > button {
+  border-radius: max(0px, calc(var(--radius-lg) - 5px)) !important;
+  width: 100% !important;
+  min-height: 28px;
+  justify-content: flex-start !important;
+  padding: 4px 8px !important;
+  font-size: var(--font-size-small) !important;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options > [aria-current="true"],
+.viz-carousel-options > button:hover {
+  background: var(--viz-carousel-hover) !important;
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type="file"] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type="file"]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: "";
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type="radio"]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: "";
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed="true"],
+  [aria-selected="true"],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(> .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker > summary,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type="file"]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="time"],
+    [type="week"]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: "";
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget > svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html>body{padding:0}</style>
+<style>html > body { max-width: 900px; margin: 0 auto; padding: 24px; }
+@media (max-width: 480px) { html > body { padding: 12px; } }</style>
+
+<style>
+  .combined-header { margin-bottom: 20px; }
+  .combined-title { font-size: 24px; line-height: 1.5; margin: 0 0 6px; }
+  .combined-subtitle { color: var(--muted-foreground); margin: 0; line-height: 1.8; }
+  .combined-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .combined-tab { font: inherit; font-weight: 600; line-height: 1.6; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); cursor: pointer; }
+  .combined-tab:hover { background: var(--card); }
+  .combined-tab[aria-selected="true"] { border-color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, var(--background)); color: var(--foreground); }
+  .combined-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  .combined-panel[hidden] { display: none !important; }
+  .combined-guide { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 14px; line-height: 1.9; }
+  .combined-guide summary { cursor: pointer; font-weight: 600; color: var(--foreground); }
+  .combined-guide p { margin: 8px 0 0; }
+  .combined-hint { color: var(--muted-foreground); font-size: 13px; margin: 5px 0 16px; }
+  .combined-notation { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 6px 16px; margin: 12px 0; }
+  .combined-notation dt { color: var(--foreground); font-weight: 600; }
+  .combined-notation dd { margin: 0; }
+  @media (max-width: 480px) { .combined-notation { grid-template-columns: 1fr; gap: 3px; } .combined-notation dd { margin-bottom: 8px; } }
+  @media (max-width: 480px) { .combined-title { font-size: 21px; } .combined-tabs { gap: 8px; } .combined-tab { padding: 10px 8px; font-size: 14px; } }
+</style>
+</head>
+<body>
+
+<noscript>Enable JavaScript in your browser to display the interactive models.</noscript>
+<header class="combined-header">
+  <h1 class="combined-title">Analytical Oblique Cutting · Interactive 3D Explorer</h1>
+  <p class="combined-subtitle">Five cutting angles from a quartic polynomial; three force components from explicit algebraic expressions. Distinct fixed workpiece and rotating tool coordinate frames. Independent check against the original nonlinear equations. Based on Altintas (2012), Section 2.5. Fully offline and self-contained.</p>
+</header>
+
+<style>
+  .research-controls{padding:16px;margin:10px 0 18px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+  .research-controls h2{font-size:17px;margin:0 0 6px}
+  .research-controls p{font-size:13px;color:var(--muted-foreground);margin:0 0 12px}
+  .research-controls .research-fields{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px 14px}
+  .research-controls label{font-size:13px;display:grid;gap:3px}
+  .research-controls input[type=number]{max-width:100%;height:34px;padding:5px 7px}
+  .research-controls input[type=range]{width:100%}
+  .research-controls output{font-variant-numeric:tabular-nums}
+  .result-dashboard{margin:10px 0 16px;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:13px;line-height:1.6}
+  .result-dashboard .dash-head{font-weight:650;margin-bottom:8px}
+  .result-dashboard .dash-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .result-dashboard .dash-item{padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--background);min-width:0}
+  .result-dashboard .dash-item small{display:block;font-size:11px;color:var(--muted-foreground)}
+  .result-dashboard .dash-item strong{display:block;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .result-dashboard .dash-footer{margin-top:10px;font-size:12px;overflow-wrap:anywhere}
+  .result-dashboard .dash-pass{color:var(--green)}
+  .result-dashboard .dash-fail{color:var(--destructive)}
+  .research-help{margin:5px 0 0!important}
+  .research-help code{font-size:12px}
+  @media (max-width:650px){.research-controls .research-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.result-dashboard .dash-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+<div id="research-physical-inputs" class="research-controls">
+  <h2>Shared friction and cutting parameters</h2>
+  <p>Adjust i and αn in either 3D tab below. Friction and force parameters are shared by both tabs. Forces are shearing contributions only (edge/ploughing forces excluded).</p>
+  <div class="research-fields">
+    <label>Average friction angle βa (degrees)
+      <input id="research-beta-range" type="range" min="0" max="40" step="0.1" value="30" aria-label="Average friction angle in degrees">
+      <output id="research-beta-output">30.0°</output>
+    </label>
+    <label>βa (degrees)
+      <input id="research-beta-number" type="number" min="0" max="40" step="0.1" value="30">
+    </label>
+    <label>Shear yield stress τs (MPa)
+      <input id="research-tau" type="number" min="0.001" max="10000" step="1" value="613">
+    </label>
+    <label>Uncut width b (mm)
+      <input id="research-width" type="number" min="0.001" max="1000" step="0.1" value="2">
+    </label>
+    <label>Uncut thickness h (mm)
+      <input id="research-thickness" type="number" min="0.0001" max="100" step="0.01" value="0.1">
+    </label>
+  </div>
+  <p class="research-help">Force scale: τs × b × h (MPa · mm² = N). Illustrative starting values; not experimental data.</p>
+</div>
+<script>
+/* Self-contained mathematical engine: analytical quartic and independent original-equation check.
+   Validated within the tool's bounded, conventional angle range. */
+(() => {
+  'use strict';
+  const D = Math.PI / 180;
+  const form = document.getElementById('research-physical-inputs');
+  const betaRange = form.querySelector('#research-beta-range'), betaNumber = form.querySelector('#research-beta-number');
+  const betaOutput = form.querySelector('#research-beta-output');
+  const tau = form.querySelector('#research-tau'), width = form.querySelector('#research-width'), thickness = form.querySelector('#research-thickness');
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function readInputs(){return {beta:+betaNumber.value,tau:+tau.value,width:+width.value,thickness:+thickness.value};}
+  function emit(){window.dispatchEvent(new CustomEvent('oblique-input-change',{detail:readInputs()}));}
+  function setBeta(v){const b=clamp(v,0,40);betaRange.value=b;betaNumber.value=b;betaOutput.textContent=b.toFixed(1)+'°';emit();}
+  betaRange.addEventListener('input',()=>setBeta(+betaRange.value));
+  betaNumber.addEventListener('change',()=>setBeta(Number.isFinite(+betaNumber.value)?+betaNumber.value:30));
+  for(const elem of [tau,width,thickness])elem.addEventListener('change',()=>{
+    const min=+elem.min,max=+elem.max;
+    if(!Number.isFinite(+elem.value)||+elem.value<min||+elem.value>max)elem.value=clamp(Number.isFinite(+elem.value)?+elem.value:min,min,max);
+    emit();
+  });
+  function polar(eta,a,b){
+    const w=Math.sin(b)*Math.sin(eta);
+    const H=Math.sqrt(Math.max(0,1-2*w*w));
+    const ti=Math.asin(w),tn=Math.atan(Math.tan(b)*Math.cos(eta))-a;
+    const pi=Math.asin(Math.SQRT2*w),pn=Math.atan2(1,H)-tn;
+    return {eta,pn,pi,tn,ti,H,w};
+  }
+  function originalResidual(eta,a,b,i){
+    const q=polar(eta,a,b);
+    return Math.tan(eta) - (Math.tan(i)*Math.cos(q.pn-a)-Math.cos(a)*Math.tan(q.pi))/Math.sin(q.pn);
+  }
+  function polySolve(a,b,i){
+    if(Math.abs(i)<1e-14)return 0;
+    const p=Math.tan(i), A=Math.sin(a), C=Math.cos(a),K=Math.cos(2*b);
+    const coeff=[A*A*K-C*C,-2*p*A*K,A*A+p*p*K-C*C,-2*p*A,p*p];
+    const evalP=t=>((((coeff[0]*t+coeff[1])*t+coeff[2])*t+coeff[3])*t+coeff[4]);
+    function physicallyValid(t){
+      const eta=Math.atan(t),w=Math.sin(b)*Math.sin(eta),q=1-2*w*w;
+      if(q<=0)return false;
+      const err=Math.tan(eta)*(Math.sin(a)+Math.cos(a)/Math.sqrt(q))-p;
+      return Math.abs(err)<2e-8;
+    }
+    const bound=80*D,n=320,candidates=[];
+    let lastEta=-bound,lastT=Math.tan(lastEta),lastF=evalP(lastT);
+    for(let j=1;j<=n;j++){
+      const eta=-bound+2*bound*j/n,t=Math.tan(eta),f=evalP(t);
+      if(lastF*f<=0){
+        let lo=lastT,hi=t,flo=lastF;
+        for(let k=0;k<90;k++){
+          const mid=(lo+hi)/2,fm=evalP(mid);
+          if(flo*fm>0){lo=mid;flo=fm;}else hi=mid;
+        }
+        const root=(lo+hi)/2;
+        if(physicallyValid(root))candidates.push(root);
+      }
+      lastT=t;lastF=f;
+    }
+    if(!candidates.length)throw Error('No admissible quartic root for this geometry.');
+    candidates.sort((x,y)=>Math.abs(Math.atan(x)-i)-Math.abs(Math.atan(y)-i));
+    return Math.atan(candidates[0]);
+  }
+  function independentSolve(a,b,i){
+    if(Math.abs(i)<1e-14)return 0;
+    // Solve Eq. (2.50) in its original form, WITHOUT using the reduced quartic.
+    // The original residual may have poles where sin(phi_n)=0: therefore a
+    // single broad bisection bracket can converge to a pole instead of a root.
+    const roots=[],N=320,bound=80*D;
+    let x0=-bound,y0=originalResidual(x0,a,b,i);
+    for(let j=1;j<=N;j++){
+      const x1=-bound+2*bound*j/N,y1=originalResidual(x1,a,b,i);
+      if(Number.isFinite(y0)&&Number.isFinite(y1)&&y0*y1<=0){
+        let lo=x0,hi=x1,flo=y0;
+        for(let k=0;k<80;k++){
+          const mid=(lo+hi)/2,fm=originalResidual(mid,a,b,i);
+          if(!Number.isFinite(fm)){hi=mid;continue;}
+          if(flo*fm>0){lo=mid;flo=fm;}else hi=mid;
+        }
+        const root=(lo+hi)/2,rr=originalResidual(root,a,b,i);
+        // Reject apparent sign changes at singularities, not genuine roots.
+        if(Number.isFinite(rr)&&Math.abs(rr)<1e-8)roots.push(root);
+      }
+      x0=x1;y0=y1;
+    }
+    if(!roots.length)throw Error('Independent Eq. (2.50) solver found no non-singular root.');
+    roots.sort((x,y)=>Math.abs(x-i)-Math.abs(y-i));
+    return roots[0];
+  }
+  function solve(iDeg,aDeg,bDeg=readInputs().beta){
+    if(!Number.isFinite(iDeg)||!Number.isFinite(aDeg)||!Number.isFinite(bDeg)||Math.abs(iDeg)>60||aDeg< -10||aDeg>25||bDeg<0||bDeg>40)
+      throw Error('Angles outside supported ranges: i ±60°, αn −10 to 25°, βa 0 to 40°.');
+    const i=iDeg*D,a=aDeg*D,b=bDeg*D;
+    const eta=polySolve(a,b,i),q=polar(eta,a,b);
+    const independentEta=independentSolve(a,b,i);
+    const X=Math.cos(b)*Math.cos(a)+Math.sin(b)*Math.cos(eta)*Math.sin(a);
+    const Y=Math.sin(b)*Math.cos(eta)*Math.cos(a)-Math.cos(b)*Math.sin(a);
+    const Z=q.w,H=q.H;
+    const normFc=2*(1-Z*Z)/(Math.cos(i)*(X-H*Y));
+    const normForces=[normFc*(X*Math.cos(i)+Z*Math.sin(i)),normFc*Y,normFc*(Z*Math.cos(i)-X*Math.sin(i))];
+    const params=readInputs(),base=params.tau*params.width*params.thickness;
+    const Fc=normFc*base,forces=normForces.map(f=>f*base);
+    const physicallyAdmissible=q.pn>0&&q.pn<Math.PI/2&&Fc>0;
+    const eqResiduals=[
+      Math.sin(q.ti)-Math.sin(b)*Math.sin(eta),
+      Math.tan(q.tn+a)-Math.tan(b)*Math.cos(eta),
+      originalResidual(eta,a,b,i),
+      Math.sin(q.pi)-Math.SQRT2*Math.sin(q.ti),
+      Math.cos(q.pn+q.tn)*Math.tan(q.pi)-Math.tan(q.ti)
+    ];
+    const Dproj=Math.cos(q.tn+q.pn)*Math.cos(q.ti)*Math.cos(q.pi)+Math.sin(q.ti)*Math.sin(q.pi);
+    const FcOriginal=base/(Dproj*Math.cos(i)*Math.sin(q.pn));
+    const originals=[
+      FcOriginal*(Math.cos(q.ti)*Math.cos(q.tn)*Math.cos(i)+Math.sin(q.ti)*Math.sin(i)),
+      FcOriginal*Math.cos(q.ti)*Math.sin(q.tn),
+      FcOriginal*(Math.sin(q.ti)*Math.cos(i)-Math.cos(q.ti)*Math.cos(q.tn)*Math.sin(i))
+    ];
+    const forceDiff=Math.max(...forces.map((f,k)=>Math.abs(f-originals[k])));
+    const error=Math.max(...eqResiduals.map(Math.abs));
+    const t=Math.tan(eta),p=Math.tan(i),A=Math.sin(a),C=Math.cos(a),K=Math.cos(2*b);
+    const quarticResidual=((((A*A*K-C*C)*t-2*p*A*K)*t+(A*A+p*p*K-C*C))*t-2*p*A)*t+p*p;
+    return {a,b,i,...q,independentEta,deltaEta:Math.abs(eta-independentEta),Fc,forces,normFc,normForces,forceDiff,error,eqResiduals,quarticResidual,
+      shearForce:Fc/Math.SQRT2,normalForce:Fc/Math.SQRT2,X,Y,Z,H,physicallyAdmissible};
+  }
+  function dashboard(el,s){
+    const d=r=>r/D;
+    const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:2});
+    const fields=[['η · chip flow',fmt(d(s.eta))+'°'],['φn · normal shear',fmt(d(s.pn))+'°'],['φi · shear tilt',fmt(d(s.pi))+'°'],['θn · force direction',fmt(d(s.tn))+'°'],['θi · force tilt',fmt(d(s.ti))+'°'],
+      ['Ftc · tangential',s.physicallyAdmissible?fmt(s.forces[0])+' N':'N/A'],['Ffc · feed',s.physicallyAdmissible?fmt(s.forces[1])+' N':'N/A'],['Frc · radial',s.physicallyAdmissible?fmt(s.forces[2])+' N':'N/A'],['Fc · resultant',s.physicallyAdmissible?fmt(s.Fc)+' N':'N/A'],['η original eq.',fmt(d(s.independentEta))+'°']];
+    const good=s.deltaEta<1e-8&&s.error<1e-8&&s.forceDiff<1e-6;
+    const physicallyValid=s.physicallyAdmissible;
+    el.innerHTML='<div class="dash-head">Algebraic quartic solution · force prediction · independent check</div><div class="dash-grid">'+fields.map(([n,v])=>`<div class="dash-item"><small>${n}</small><strong>${v}</strong></div>`).join('')+'</div>'+
+      `<div class="dash-footer"><span class="${good?'dash-pass':'dash-fail'}">${good?'✓ Consistency checks passed':'⚠ Check limits / numerical precision'}</span> · |Δη| = ${s.deltaEta.toExponential(2)} rad · max |Eqs. 2.48–2.52 residual| = ${s.error.toExponential(2)} · max force difference vs Eqs. 2.53/2.59 = ${s.forceDiff.toExponential(2)} N · quartic residual = ${Math.abs(s.quarticResidual).toExponential(2)}. <strong>Not experimental validation.</strong>${physicallyValid?'':' <strong class="dash-fail">⚠ Nonphysical shear angle or resultant sign for these inputs: forces not applicable; force-sphere vectors are formal only.</strong>'}</div>`;
+  }
+  window.ObliqueAnalytical={solve,dashboard,readInputs,polySolve,independentSolve};
+})();
+</script>
+
+<nav class="combined-tabs" role="tablist" aria-label="Select a model">
+  <button id="combined-tab-oblique" class="combined-tab" type="button" role="tab" aria-controls="combined-panel-oblique" aria-selected="true" tabindex="0" data-panel="oblique">1 · Tool and workpiece</button>
+  <button id="combined-tab-merchant" class="combined-tab" type="button" role="tab" aria-controls="combined-panel-merchant" aria-selected="false" tabindex="-1" data-panel="merchant">2 · Force sphere</button>
+</nav>
+<section id="combined-panel-oblique" class="combined-panel" role="tabpanel" aria-labelledby="combined-tab-oblique">
+<div id="altintas-tool-workpiece" dir="ltr">
+  <style>
+    #altintas-tool-workpiece { color:var(--foreground); }
+    #altintas-tool-workpiece .scene { display:block; width:100%; height:clamp(330px,60vw,440px); touch-action:none; cursor:grab; }
+    #altintas-tool-workpiece .scene:active { cursor:grabbing; }
+    #altintas-tool-workpiece .legend { display:flex; flex-wrap:wrap; gap:8px 16px; justify-content:center; margin-top:8px; }
+    #altintas-tool-workpiece .legend span { display:inline-flex; gap:6px; align-items:center; }
+    #altintas-tool-workpiece .swatch { display:inline-block; width:12px; height:12px; }
+    #altintas-tool-workpiece .values { text-align:center; margin-top:12px; overflow-wrap:anywhere; }
+  </style>
+  <h3>Tool, workpiece and oblique-cutting geometry</h3>
+  <p class="combined-hint">Drag to rotate · Scroll to zoom. Two coordinate frames are deliberately distinguished: fixed workpiece <strong>Xw,Yw,Zw</strong> and Altintas tool-local <strong>x,y,z</strong> (local y coincides with the cutting edge).</p>
+  <div class="viz-controls">
+    <label class="form-label" for="cutting-i-slider">Inclination i: <output dir="ltr" class="tabular-nums" data-i-value>25.0°</output>
+      <input id="cutting-i-slider" data-i-slider class="form-range" type="range" min="-60" max="60" step="0.1" value="25">
+    </label>
+    <label class="form-label" for="cutting-i-number">i (degrees)
+      <input id="cutting-i-number" data-i-number class="form-control" type="number" min="-60" max="60" step="0.1" value="25" dir="ltr">
+    </label>
+  </div>
+  <div class="viz-controls">
+    <label class="form-label" for="cutting-alpha-slider">Normal rake αn: <output dir="ltr" class="tabular-nums" data-alpha-value>10.0°</output>
+      <input id="cutting-alpha-slider" data-alpha-slider class="form-range" type="range" min="-10" max="25" step="0.1" value="10">
+    </label>
+    <label class="form-label" for="cutting-alpha-number">αn (degrees)
+      <input id="cutting-alpha-number" data-alpha-number class="form-control" type="number" min="-10" max="25" step="0.1" value="10" dir="ltr">
+    </label>
+  </div>
+  <div class="viz-controls">
+    <label class="form-label" for="cutting-mode">Display
+      <select id="cutting-mode" class="form-select" data-mode>
+        <option value="geometry">Cutting planes</option>
+        <option value="velocity">Velocity triangle</option>
+        <option value="force">Force decomposition</option>
+        <option value="sphere">Force-sphere construction</option>
+      </select>
+    </label>
+    <label class="form-label" for="cutting-view">View direction
+      <select id="cutting-view" class="form-select" data-view>
+        <option value="iso">Isometric</option>
+        <option value="normal">Normal to tool plane Pn</option>
+        <option value="top">Top (workpiece Xw–Yw plane)</option>
+        <option value="free">Free rotation</option>
+      </select>
+    </label>
+  </div>
+  <div class="viz-row" data-bodies>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-tool checked><span class="form-check-label">Show tool</span></label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-workpiece checked><span class="form-check-label">Show workpiece</span></label>
+  </div>
+  <div class="viz-row" style="margin:5px 0 8px;font-size:13px">
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-fixed-axes checked><span class="form-check-label">Fixed workpiece axes Xw, Yw, Zw</span></label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-tool-axes checked><span class="form-check-label">Altintas local axes x, y, z</span></label>
+  </div>
+  <div class="values tabular-nums" dir="ltr" aria-live="polite" data-values></div>
+   <div class="result-dashboard" id="oblique-result-dashboard" aria-live="polite"></div>
+  <canvas class="scene" role="img" aria-label="Rotatable 3D tool and workpiece, cutting planes and velocity vectors. Drag to rotate." data-scene>A wedge-shaped tool on the workpiece surface, with oblique-cutting geometry and velocity vectors.</canvas>
+  <div class="legend text-small" data-legend></div>
+  <span class="sr-only" data-color-probe></span>
+  <script>
+  (() => {
+    const root=document.getElementById('altintas-tool-workpiece');
+    const canvas=root.querySelector('[data-scene]'), ctx=canvas.getContext('2d');
+    const mode=root.querySelector('[data-mode]');
+    const iSlider=root.querySelector('[data-i-slider]'),iNumber=root.querySelector('[data-i-number]'),iValue=root.querySelector('[data-i-value]');
+    const alphaSlider=root.querySelector('[data-alpha-slider]'),alphaNumber=root.querySelector('[data-alpha-number]'),alphaValue=root.querySelector('[data-alpha-value]');
+    const view=root.querySelector('[data-view]'), values=root.querySelector('[data-values]');
+    const legend=root.querySelector('[data-legend]'), probe=root.querySelector('[data-color-probe]');
+    const toolCheck=root.querySelector('[data-tool]'),workpieceCheck=root.querySelector('[data-workpiece]'),bodyControls=root.querySelector('[data-bodies]');
+    const fixedAxesCheck=root.querySelector('[data-fixed-axes]'),toolAxesCheck=root.querySelector('[data-tool-axes]');
+    const add=(a,b)=>a.map((v,j)=>v+b[j]), sub=(a,b)=>a.map((v,j)=>v-b[j]);
+    const mul=(a,s)=>a.map(v=>v*s), dot=(a,b)=>a.reduce((s,v,j)=>s+v*b[j],0);
+    const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+    const norm=a=>Math.sqrt(dot(a,a)), unit=a=>mul(a,1/norm(a));
+    const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+    const O=[0,0,0], X=[1,0,0], Y=[0,1,0], Z=[0,0,1];
+    let az=rad(-135), el=rad(25), zoom=1, dragging=null, frame=0;
+    let inclination=25,rake=10,displayedI=25,displayedAlpha=10,animation=0;
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+    let W=0,H=0,S=1,target=O,colors={},labels=[];
+    let sceneI=0,renderedBodies=[];
+    const token=n=>{probe.style.color=`var(${n})`;return getComputedStyle(probe).color;};
+    function palette(){
+      const p={fg:token('--foreground'),border:token('--border'),muted:token('--muted-foreground'),bg:token('--background')};
+      for(let i=1;i<=6;i++)p['s'+i]=token('--viz-series-'+i);
+      return p;
+    }
+    function model(iDegrees=displayedI,alphaDegrees=displayedAlpha){
+      const solution=window.ObliqueAnalytical.solve(iDegrees,alphaDegrees);
+      const {a,b,i,eta}=solution;
+      const t={pn:solution.pn,pi:solution.pi,tn:solution.tn,ti:solution.ti},pn=t.pn;
+      const ur=[Math.sin(a),0,Math.cos(a)],nr=[-Math.cos(a),0,Math.sin(a)];
+      const sn=[-Math.cos(pn),0,Math.sin(pn)],ns=[Math.sin(pn),0,Math.cos(pn)];
+      const uc=add(mul(ur,Math.cos(eta)),mul(Y,Math.sin(eta)));
+      const V=[Math.cos(i),Math.sin(i),0];
+      const vc=Math.cos(i)*Math.sin(pn)/(Math.cos(eta)*Math.cos(pn-a));
+      const Vc=mul(uc,vc),Vs=sub(Vc,V);
+      const N=mul(nr,Math.cos(b)),T=mul(uc,-Math.sin(b)),R=add(N,T);
+      const Fn=mul(ns,dot(R,ns)),Fs=sub(R,Fn);
+      return {...solution,a,b,i,eta,pn,pi:t.pi,ti:t.ti,tn:t.tn,ur,nr,sn,ns,uc,V,Vc,Vs,N,T,R,Fn,Fs};
+    }
+    function worldPoint(p,i=sceneI){
+      const c=Math.cos(i),s=Math.sin(i);
+      return [c*p[0]+s*p[1],-s*p[0]+c*p[1],p[2]];
+    }
+    function project(p,world=false){
+      if(!world)p=worldPoint(p);
+      const d=sub(p,target),ca=Math.cos(az),sa=Math.sin(az),ce=Math.cos(el),se=Math.sin(el);
+      return [W/2+S*(-sa*d[0]+ca*d[1]), H/2-S*(-ca*se*d[0]-sa*se*d[1]+ce*d[2]), ca*ce*d[0]+sa*ce*d[1]+se*d[2]];
+    }
+    function line(points,color,width=1,dashed=false,alpha=1){
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.globalAlpha=alpha;
+      if(dashed)ctx.setLineDash([4,4]);
+      ctx.beginPath();points.forEach((p,j)=>{const q=project(p);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);});ctx.stroke();ctx.restore();
+    }
+    function polygon(points,color,alpha=.12,world=false,solid=false){
+      ctx.save();ctx.beginPath();points.forEach((p,j)=>{const q=project(p,world);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);});ctx.closePath();
+      ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.fill();ctx.globalAlpha=solid?.65:.55;ctx.strokeStyle=solid?colors.muted:colors.border;ctx.lineWidth=1;ctx.stroke();ctx.restore();
+    }
+    function label(p,text,dx=7,dy=-8,world=false){labels.push({p,text,dx,dy,world});}
+    function point(p,color,r=3){const q=project(p);ctx.beginPath();ctx.arc(q[0],q[1],r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+    function arrow(a,b,text,color,width=2.5,offset=[6,-8]){
+      const qa=project(a),qb=project(b),dx=qb[0]-qa[0],dy=qb[1]-qa[1],l=Math.hypot(dx,dy);
+      if(l<1)return;
+      line([a,b],color,width);
+      const ux=dx/l,uy=dy/l,h=Math.min(10,l*.22);
+      ctx.beginPath();ctx.moveTo(qb[0],qb[1]);
+      ctx.lineTo(qb[0]-h*ux-h*.42*uy,qb[1]-h*uy+h*.42*ux);
+      ctx.lineTo(qb[0]-h*ux+h*.42*uy,qb[1]-h*uy-h*.42*ux);ctx.closePath();ctx.fillStyle=color;ctx.fill();
+      if(text)label(b,text,...offset);
+    }
+    function arc(b1,b2,angle,r,text,color){
+      if(Math.abs(angle)<1e-7)return;
+      const pts=[];for(let j=0;j<=30;j++){const t=angle*j/30;pts.push(mul(add(mul(b1,Math.cos(t)),mul(b2,Math.sin(t))),r));}
+      line(pts,color,1.8);
+      if(W>390||text==='i'||text==='η')label(pts[15],text,4,-7);
+    }
+    function circle(c,r,b1,b2,color,width=1,alpha=1){
+      const p=[];for(let j=0;j<=96;j++){const t=2*Math.PI*j/96;p.push(add(c,mul(add(mul(b1,Math.cos(t)),mul(b2,Math.sin(t))),r)));}
+      line(p,color,width,false,alpha);
+    }
+    function drawLabels(){
+      const fs=parseFloat(getComputedStyle(root).fontSize);
+      ctx.font=`400 ${fs}px ${getComputedStyle(root).fontFamily}`;ctx.textBaseline='middle';ctx.fillStyle=colors.fg;
+      const boxes=[];
+      for(const item of labels){
+        const q=project(item.p,item.world),tw=ctx.measureText(item.text).width;
+        let x=Math.min(W-tw-8,Math.max(8,q[0]+item.dx)),y=Math.min(H-fs-5,Math.max(fs+5,q[1]+item.dy));
+        for(let k=0;k<8;k++){
+          if(!boxes.some(b=>x<b.x+b.w+4&&x+tw+4>b.x&&y-fs/2<b.y+b.h&&y+fs/2>b.y))break;
+          y+=k%2===0?(k+1)*fs:-(k+1)*fs;y=Math.min(H-fs-5,Math.max(fs+5,y));
+        }
+        ctx.save();ctx.globalAlpha=.88;ctx.fillStyle=colors.bg;ctx.fillRect(x-2,y-fs/2-1,tw+4,fs+2);ctx.restore();
+        ctx.fillStyle=colors.fg;ctx.fillText(item.text,x,y);boxes.push({x:x-2,y:y-fs/2-1,w:tw+4,h:fs+2});
+      }
+    }
+    function bodyGeometry(g){
+      const h=26,L=30,w=12,clearance=rad(8);
+      const a=[0,-w,0],b=[h*Math.tan(g.a),-w,h],c=[L,-w,L*Math.tan(clearance)];
+      const toolVertices=[a,b,c,add(a,[0,2*w,0]),add(b,[0,2*w,0]),add(c,[0,2*w,0])];
+      const workpieceVertices=[[-50,-34,-12],[42,-34,-12],[42,34,-12],[-50,34,-12],[-50,-34,0],[42,-34,0],[42,34,0],[-50,34,0]];
+      return {
+        tool:{vertices:toolVertices,faces:[{indices:[0,2,1]},{indices:[3,4,5]},{indices:[0,1,4,3],rake:true},{indices:[0,3,5,2]},{indices:[1,2,5,4]}],world:false},
+        workpiece:{vertices:workpieceVertices,faces:[{indices:[4,5,6,7]},{indices:[0,3,2,1]},{indices:[0,1,5,4]},{indices:[3,7,6,2]},{indices:[0,4,7,3]},{indices:[1,2,6,5]}],world:true}
+      };
+    }
+    function faceTone(kind,normal,isRake){
+      const light=unit([-.4,-.5,.9]),brightness=Math.max(0,dot(normal,light));
+      const percent=isRake?48+12*(1-brightness):(kind==='tool'?26+12*(1-brightness):10+12*(1-brightness));
+      probe.style.color=`color-mix(in srgb, var(${isRake?'--viz-series-2':'--foreground'}) ${percent.toFixed(2)}%, var(--background))`;
+      return getComputedStyle(probe).color;
+    }
+    function planes(g,names,compact=false,physical=false){
+      const w=compact?17:22,r=compact?27:42;
+      const poly={
+        cut:[[-r,-w,0],[r,-w,0],[r,w,0],[-r,w,0]],
+        normal:compact?[[-r,0,-r],[r,0,-r],[r,0,r],[-r,0,r]]:[[-r,0,-4],[28,0,-4],[28,0,44],[-r,0,44]],
+        rake:[mul(Y,-w),mul(Y,w),add(mul(Y,w),mul(g.ur,r)),add(mul(Y,-w),mul(g.ur,r))],
+        shear:[mul(Y,-w),mul(Y,w),add(mul(Y,w),mul(g.sn,r)),add(mul(Y,-w),mul(g.sn,r))],
+        velocity:[O,mul(g.V,29),add(mul(g.V,29),mul(g.Vc,29)),mul(g.Vc,29)]
+      };
+      if(compact){
+        poly.rake=[add(mul(Y,-w),mul(g.ur,-r)),add(mul(Y,w),mul(g.ur,-r)),add(mul(Y,w),mul(g.ur,r)),add(mul(Y,-w),mul(g.ur,r))];
+        poly.shear=[add(mul(Y,-w),mul(g.sn,-r)),add(mul(Y,w),mul(g.sn,-r)),add(mul(Y,w),mul(g.sn,r)),add(mul(Y,-w),mul(g.sn,r))];
+      }
+      const col={cut:colors.s1,normal:colors.muted,rake:colors.s2,shear:colors.s3,velocity:colors.s4};
+      const surfaces=names.map(n=>({n,p:poly[n],world:n==='cut',color:col[n],alpha:n==='normal'?.06:.12}));
+      if(physical){
+        const bodies=bodyGeometry(g),eye=[Math.cos(az)*Math.cos(el),Math.sin(az)*Math.cos(el),Math.sin(el)];
+        for(const kind of ['workpiece','tool']){
+          if(!(kind==='tool'?toolCheck.checked:workpieceCheck.checked))continue;
+          renderedBodies.push(kind);
+          const mesh=bodies[kind];
+          for(const face of mesh.faces){
+            const p=face.indices.map(j=>mesh.vertices[j]);
+            let n=unit(cross(sub(p[1],p[0]),sub(p[2],p[1])));
+            if(!mesh.world)n=worldPoint(n);
+            if(dot(n,eye)<=1e-8)continue;
+            surfaces.push({n:kind,p,world:mesh.world,color:faceTone(kind,n,face.rake),alpha:1,solid:true});
+          }
+        }
+      }
+      surfaces.map(o=>({...o,d:o.p.reduce((s,p)=>s+project(p,o.world)[2],0)/o.p.length})).sort((a,b)=>a.d-b.d).forEach(o=>polygon(o.p,o.color,o.alpha,o.world,o.solid));
+      if(!compact){
+        if(names.includes('cut'))label([r-7,w,0],'xy',7,-8,true);
+        if(names.includes('normal'))label([-r+2,0,38],'Pn');
+        if(names.includes('rake'))label(add(mul(g.ur,r),mul(Y,w)),'Rake');
+        if(names.includes('shear'))label(add(mul(g.sn,r),mul(Y,-w)),'Shear');
+        if(names.includes('velocity'))label(add(mul(g.V,25),mul(g.Vc,19)),'Pv');
+      }
+      if(physical){
+        if(toolCheck.checked)label([22,-12,7],'Tool',7,-8);
+        if(workpieceCheck.checked)label([-36,20,0],'Workpiece',7,-8,true);
+      }
+    }
+    // World frame W is fixed to the rectangular workpiece. Local frame L is
+    // the Altintas tool frame: local y is the cutting edge, local x is in the
+    // cut plane and normal to that edge, local z is the cut-surface normal.
+    // Coordinate change: R_WL(i)=[[cos i,sin i,0],[-sin i,cos i,0],[0,0,1]].
+    // In particular V_L=(cos i,sin i,0), while V_W=(1,0,0).
+    function axes(compact=false){
+      const l=compact?22:29;
+      if(toolAxesCheck.checked){
+        for(const [e,t,len] of [[X,'x',l],[Y,'y (edge)',l],[Z,'z',compact?24:38]])
+          arrow(O,mul(e,len),t,colors.s3,1.4);
+      }
+      // Draw the actual cutting edge along +/− local y, not along local x.
+      const edgeHalfLength=toolCheck.checked&&bodyControls.hidden===false?12:26;
+      line([mul(Y,-edgeHalfLength),mul(Y,edgeHalfLength)],colors.fg,3.5);
+      if(fixedAxesCheck.checked && !compact){
+        const a=[-42,-26,0]; // stationary in world/workpiece coordinates
+        function fixedArrow(axis,end,text){
+          const qa=project(a,true),qb=project(end,true),dx=qb[0]-qa[0],dy=qb[1]-qa[1];
+          const len=Math.hypot(dx,dy);if(len<1)return;
+          ctx.save();ctx.strokeStyle=colors.s1;ctx.lineWidth=1.9;ctx.beginPath();ctx.moveTo(...qa);ctx.lineTo(...qb);ctx.stroke();
+          const ux=dx/len,uy=dy/len,h=Math.min(9,len*.24);
+          ctx.beginPath();ctx.moveTo(...qb);
+          ctx.lineTo(qb[0]-h*ux-h*.4*uy,qb[1]-h*uy+h*.4*ux);
+          ctx.lineTo(qb[0]-h*ux+h*.4*uy,qb[1]-h*uy-h*.4*ux);
+          ctx.closePath();ctx.fillStyle=colors.s1;ctx.fill();ctx.restore();
+          label(end,text,6,-8,true);
+        }
+        fixedArrow(X,add(a,mul(X,31)),'Xw');
+        fixedArrow(Y,add(a,mul(Y,31)),'Yw');
+        fixedArrow(Z,add(a,mul(Z,24)),'Zw');
+        label(a,'Fixed workpiece frame',-4,15,true);
+      }
+      point(O,colors.fg,3);
+    }
+    function legendItems(items){
+      legend.replaceChildren();
+      for(const [text,color] of items){const e=document.createElement('span'),sw=document.createElement('i');sw.className='swatch';sw.style.backgroundColor=color;sw.setAttribute('aria-hidden','true');e.append(sw,document.createTextNode(text));legend.append(e);}
+    }
+    function draw(){
+      frame=0;
+      const dpr=Math.min(window.devicePixelRatio||1,2),rect=canvas.getBoundingClientRect();W=rect.width;H=rect.height;
+      if(!W||!H)return;
+      canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+      colors=palette();labels=[];renderedBodies=[];const g=model(),m=mode.value;sceneI=g.i;
+      bodyControls.hidden=!(m==='geometry'||m==='velocity');
+      if(view.value==='normal'){az=rad(-90)-g.i;el=0;}
+      if(m==='sphere'){target=worldPoint(mul(g.R,20));S=Math.min((W-65)/52,(H-55)/52)*zoom;}
+      else if(m==='force'){target=worldPoint([-10,-2,-2]);S=Math.min((W-60)/88,(H-55)/70)*zoom;}
+      else {target=[-4,0,8];S=Math.min((W-65)/130,(H-65)/100)*zoom;}
+      const nextValues=(m==='force'||m==='sphere')?`βa = ${deg(g.b).toFixed(1)}°  ·  θₙ = ${deg(g.tn).toFixed(2)}°  ·  θᵢ = ${deg(g.ti).toFixed(2)}°`:
+        `φₙ = ${deg(g.pn).toFixed(2)}°  ·  η = ${deg(g.eta).toFixed(2)}°  ·  |Vc|/|V| = ${norm(g.Vc).toFixed(3)}  ·  |Vs|/|V| = ${norm(g.Vs).toFixed(3)}`;
+      if(values.textContent!==nextValues)values.textContent=nextValues;
+      window.ObliqueAnalytical.dashboard(document.getElementById("oblique-result-dashboard"),g);
+      if(m==='geometry'){
+        planes(g,['cut','normal','rake','shear'],false,true);axes();
+        line([O,mul(g.ur,32)],colors.muted,1,true);line([O,mul(g.sn,30)],colors.muted,1,true);
+        const v=mul(g.V,27),c=mul(g.Vc,27),s=mul(g.Vs,27);
+        arrow(O,v,'V',colors.s1,2.4);arrow(O,c,'Vc',colors.s2,2.4);
+        arrow(O,s,'Vs',colors.s3,2.8,[-20,-12]);
+        line([v,c],colors.s3,1.1,true,.65);
+        arc(X,Y,g.i,17,'i',colors.s1);arc(Z,X,g.a,18,'αₙ',colors.s2);
+        arc(mul(X,-1),Z,g.pn,14,'φₙ',colors.s3);arc(g.ur,Y,g.eta,25,'η',colors.s2);
+        legendItems([['Xw/Yw · Fixed workpiece edges; V · Cutting velocity',colors.s1],['x/y · Rotating tool frame (y = cutting edge)',colors.s3],['Rake face; Vc · Chip velocity',colors.s2],['Shear plane; Vs · Shear velocity',colors.s3],['Pn · Plane normal to cutting edge',colors.muted]]);
+      } else if(m==='velocity'){
+        planes(g,['cut','normal','rake','shear','velocity'],false,true);axes();
+        const v=mul(g.V,29),c=mul(g.Vc,29);
+        arrow(O,v,'V',colors.s1);arrow(O,c,'Vc',colors.s2);arrow(v,c,'Vs',colors.s3,2.5,[-25,-13]);
+        arrow(O,mul(g.Vs,29),'Vs (O)',colors.s3,1.6,[0,16]);
+        legendItems([['Xw/Yw fixed to workpiece · x/y attached to tool',colors.s1],['V · Cutting velocity',colors.s1],['Vc · Chip velocity',colors.s2],['Vs · Shear velocity',colors.s3],['Pv · Velocity plane',colors.s4]]);
+      } else if(m==='force'){
+        planes(g,['normal','rake','shear'],true);axes(true);
+        const r=mul(g.R,37),n=mul(g.N,37),t=mul(g.T,37),fn=mul(g.Fn,37);
+        arrow(O,r,'R',colors.fg,3.2);arrow(O,n,'Fv',colors.s5);arrow(n,r,'Fu',colors.s4,2.4,[-20,-15]);
+        line([O,t],colors.s4,1.2,true,.65);
+        arrow(O,fn,'Fn',colors.s5,1.8,[8,13]);arrow(fn,r,'Fs',colors.s3,2.4,[-25,13]);
+        legendItems([['R · Resultant force on the chip',colors.fg],['Fv · Rake-face normal force',colors.s5],['Fu · Friction force',colors.s4],['Fs · Shear force',colors.s3]]);
+      } else {
+        const r=mul(g.R,40),n=mul(g.N,40),t=mul(g.T,40),fn=mul(g.Fn,40),fs=mul(g.Fs,40),center=mul(r,.5),radius=20;
+        for(let k=0;k<6;k++){const a=k*Math.PI/6;circle(center,radius,[Math.cos(a),Math.sin(a),0],Z,colors.muted,.8,.3);}
+        for(const latitude of [-60,-30,0,30,60]){const a=rad(latitude);circle(add(center,mul(Z,radius*Math.sin(a))),radius*Math.cos(a),X,Y,colors.muted,.8,.3);}
+        circle(center,radius,g.nr,g.uc,colors.s2,2,.8);
+        circle(center,radius,g.ns,unit(g.Fs),colors.s3,2,.8);
+        arrow(O,r,'R',colors.fg,3);arrow(O,n,'Fv',colors.s5);arrow(n,r,'Fu',colors.s4,2.4,[-25,-15]);
+        line([O,t,r],colors.s4,1.1,true,.7);label(t,'Fu',-15,16);
+        arrow(O,fn,'Fn',colors.s5,1.8,[8,14]);arrow(fn,r,'Fs',colors.s3,2.4,[-25,15]);
+        for(const p of [O,r,n,t,fn,fs])point(p,colors.fg,2.5);
+        label(O,'O',5,15);point(center,colors.muted,2.5);label(center,'R/2',6,12);
+        legendItems([['Rake-face force decomposition',colors.s2],['Shear-plane force decomposition',colors.s3]]);
+      }
+      drawLabels();
+      root.dataset.mode=m;root.dataset.kind=Math.abs(g.i)<1e-10?'orthogonal':'oblique';
+      canvas.setAttribute('aria-label',`${root.dataset.kind==='orthogonal'?'Orthogonal cutting':'Oblique cutting'}; i = ${deg(g.i).toFixed(1)} degrees; normal rake = ${deg(g.a).toFixed(1)} degrees; ${mode.options[mode.selectedIndex].text}; ${renderedBodies.includes('tool')?'Tool visible; ':''}${renderedBodies.includes('workpiece')?'Workpiece visible; ':''}${values.textContent}`);
+    }
+    const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
+    function camera(){
+      if(view.value==='normal'){az=rad(-90);el=0;}
+      else if(view.value==='top'){az=rad(-90);el=rad(90);}
+      else if(view.value==='iso'){az=rad(-135);el=rad(25);}
+      zoom=1;schedule();
+    }
+    function setParameters(iDegrees,alphaDegrees){
+      if(!Number.isFinite(iDegrees)||!Number.isFinite(alphaDegrees))return;
+      inclination=Math.max(-60,Math.min(60,iDegrees));rake=Math.max(-10,Math.min(25,alphaDegrees));
+      iSlider.value=inclination;iNumber.value=inclination;iValue.textContent=inclination.toFixed(1)+'°';
+      alphaSlider.value=rake;alphaNumber.value=rake;alphaValue.textContent=rake.toFixed(1)+'°';
+      if(animation)cancelAnimationFrame(animation);
+      if(reduced.matches){displayedI=inclination;displayedAlpha=rake;schedule();return;}
+      const fromI=displayedI,fromAlpha=displayedAlpha,toI=inclination,toAlpha=rake,start=performance.now();
+      function step(now){const t=Math.min(1,(now-start)/230),ease=t*t*(3-2*t);displayedI=fromI+(toI-fromI)*ease;displayedAlpha=fromAlpha+(toAlpha-fromAlpha)*ease;draw();if(t<1)animation=requestAnimationFrame(step);else animation=0;}
+      animation=requestAnimationFrame(step);
+    }
+    iSlider.addEventListener('input',()=>setParameters(Number(iSlider.value),rake));
+    iNumber.addEventListener('change',()=>setParameters(Number(iNumber.value),rake));
+    alphaSlider.addEventListener('input',()=>setParameters(inclination,Number(alphaSlider.value)));
+    alphaNumber.addEventListener('change',()=>setParameters(inclination,Number(alphaNumber.value)));
+    toolCheck.addEventListener('change',schedule);workpieceCheck.addEventListener('change',schedule);fixedAxesCheck.addEventListener('change',schedule);toolAxesCheck.addEventListener('change',schedule);
+    window.addEventListener('oblique-input-change',schedule);
+    mode.addEventListener('change',()=>{zoom=1;schedule();});view.addEventListener('change',camera);
+    canvas.addEventListener('pointerdown',e=>{dragging={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+    canvas.addEventListener('pointermove',e=>{if(!dragging)return;az-=(e.clientX-dragging.x)*.007;el=Math.max(rad(-85),Math.min(rad(85),el+(e.clientY-dragging.y)*.007));dragging={x:e.clientX,y:e.clientY};view.value='free';schedule();});
+    const stop=()=>{dragging=null;};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.65,Math.min(1.65,zoom*Math.exp(-e.deltaY*.001)));schedule();},{passive:false});
+    new ResizeObserver(schedule).observe(canvas);
+    new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+    if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
+    root.__geometry=model;
+    root.__geometryTest={model,setParameters,draw,bodyGeometry,worldPoint,getRenderedBodies:()=>renderedBodies.slice(),getLabels:()=>labels.map(l=>l.text),getState:()=>({i:displayedI,alpha:displayedAlpha})};
+    schedule();
+  })();
+  </script>
+</div>
+</section>
+<section id="combined-panel-merchant" class="combined-panel" role="tabpanel" aria-labelledby="combined-tab-merchant" hidden>
+<div id="merchant-ia-explorer" dir="ltr">
+  <h3>Force sphere · algebraic force magnitudes</h3>
+  <p class="combined-hint">A geometric extension of the Merchant circle · Drag to rotate</p>
+  <div class="viz-controls">
+    <label class="form-label" for="merchant-i-slider">Inclination i: <output id="merchant-i-value" class="tabular-nums" dir="ltr">25.0°</output>
+      <input id="merchant-i-slider" class="form-range" type="range" min="-60" max="60" step="0.1" value="25" aria-label="Inclination i in degrees">
+    </label>
+    <label class="form-label" for="merchant-i-number">i (degrees)
+      <input id="merchant-i-number" class="form-control" type="number" min="-60" max="60" step="0.1" value="25" dir="ltr">
+    </label>
+  </div>
+  <div class="viz-controls">
+    <label class="form-label" for="merchant-alpha-slider">Normal rake αn: <output id="merchant-alpha-value" class="tabular-nums" dir="ltr">10.0°</output>
+      <input id="merchant-alpha-slider" class="form-range" type="range" min="-10" max="25" step="0.1" value="10" aria-label="Normal rake angle in degrees">
+    </label>
+    <label class="form-label" for="merchant-alpha-number">αn (degrees)
+      <input id="merchant-alpha-number" class="form-control" type="number" min="-10" max="25" step="0.1" value="10" dir="ltr">
+    </label>
+  </div>
+  <div class="viz-row merchant-legend">
+    <label class="form-check"><input class="form-check-input" type="checkbox" id="merchant-cut" checked><span class="form-check-label"><span class="merchant-swatch" data-series="cut"></span>Cutting components · Ftc / Ffc / Frc</span></label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" id="merchant-rake" checked><span class="form-check-label"><span class="merchant-swatch" data-series="rake"></span>Rake face · Fv / Fu</span></label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" id="merchant-shear" checked><span class="form-check-label"><span class="merchant-swatch" data-series="shear"></span>Shear plane · Fn / Fs</span></label>
+  </div>
+  <canvas id="merchant-i-canvas" role="img" aria-label="3D force-decomposition sphere. Drag to rotate." aria-describedby="merchant-i-access">A force sphere with resultant Fc as its diameter and three force-decomposition circles.</canvas>
+  <div id="merchant-i-access" class="sr-only">Drag the model to change the viewing direction. The inclination and normal-rake controls can also be operated with the keyboard.</div>
+  <div id="merchant-i-detail" class="text-small tabular-nums" dir="ltr" aria-live="polite"></div>
+  <div class="result-dashboard" id="merchant-result-dashboard" aria-live="polite"></div>
+  <div class="text-small merchant-fixed" dir="ltr">Force-sphere vectors are geometrically scaled to fit the canvas; numerical force values are in the dashboard (N).</div>
+</div>
+<style>
+  #merchant-ia-explorer { width:100%; }
+  #merchant-ia-explorer canvas { display:block; width:100%; touch-action:none; cursor:grab; }
+  #merchant-ia-explorer canvas:active { cursor:grabbing; }
+  #merchant-ia-explorer .merchant-swatch { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-inline-end:5px; }
+  #merchant-ia-explorer [data-series="cut"] { background:var(--viz-series-2); }
+  #merchant-ia-explorer [data-series="rake"] { background:var(--viz-series-3); }
+  #merchant-ia-explorer [data-series="shear"] { background:var(--viz-series-4); }
+  #merchant-ia-explorer .merchant-fixed { color:var(--muted-foreground); margin-top:5px; }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('merchant-ia-explorer');
+  const canvas = root.querySelector('#merchant-i-canvas');
+  const ctx = canvas.getContext('2d');
+  const slider = root.querySelector('#merchant-i-slider');
+  const number = root.querySelector('#merchant-i-number');
+  const value = root.querySelector('#merchant-i-value');
+  const alphaSlider = root.querySelector('#merchant-alpha-slider');
+  const alphaNumber = root.querySelector('#merchant-alpha-number');
+  const alphaValue = root.querySelector('#merchant-alpha-value');
+  const detail = root.querySelector('#merchant-i-detail');
+  const checks = {cut:root.querySelector('#merchant-cut'),rake:root.querySelector('#merchant-rake'),shear:root.querySelector('#merchant-shear')};
+  const D2R=Math.PI/180, add=(a,b)=>a.map((v,j)=>v+b[j]), sub=(a,b)=>a.map((v,j)=>v-b[j]), mul=(a,s)=>a.map(v=>v*s);
+  const dot=(a,b)=>a.reduce((sum,v,j)=>sum+v*b[j],0), norm=a=>Math.sqrt(dot(a,a)), unit=a=>mul(a,1/norm(a));
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  function solve(degrees,alphaDegrees=10) {
+    const result=window.ObliqueAnalytical.solve(degrees,alphaDegrees);
+    const {a,b,i,eta}=result;
+    const cb=Math.cos(b),sb=Math.sin(b),ca=Math.cos(a),sa=Math.sin(a);
+    // The plotted force acts on the tool; the first tab draws its opposite on the chip.
+    const Fv=mul([cb*ca,0,-cb*sa],result.Fc),Fu=mul([sb*Math.cos(eta)*sa,sb*Math.sin(eta),sb*Math.cos(eta)*ca],result.Fc);
+    const Fc=add(Fv,Fu),ns=[Math.sin(result.pn),0,Math.cos(result.pn)],Fn=mul(ns,dot(Fc,ns)),Fs=sub(Fc,Fn);
+    const et=[Math.cos(i),Math.sin(i),0],er=[-Math.sin(i),Math.cos(i),0];
+    return {...result,Fc,Fv,Fu,Fn,Fs,Ftc:mul(et,dot(Fc,et)),Ffc:[0,0,Fc[2]],Frc:mul(er,dot(Fc,er)),et,er};
+  }
+  let inclination=25,rake=10,displayed=25,displayedAlpha=10,az=-55*D2R,el=24*D2R,width=640,height=440,frame=0,drag=null;
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const colorProbe=document.createElement('span');colorProbe.style.display='none';root.appendChild(colorProbe);
+  function resolved(name){colorProbe.style.color=`var(--${name})`;return getComputedStyle(colorProbe).color;}
+  function colors(){const st=getComputedStyle(root);return {fg:resolved('foreground'),muted:resolved('muted-foreground'),grid:resolved('border'),Fc:resolved('viz-series-1'),cut:resolved('viz-series-2'),rake:resolved('viz-series-3'),shear:resolved('viz-series-4'),font:st.fontFamily,size:parseFloat(st.fontSize)||14};}
+  function draw(degrees=displayed,alphaDegrees=displayedAlpha){
+    displayed=degrees;displayedAlpha=alphaDegrees;const s=solve(degrees,alphaDegrees),c=mul(s.Fc,.5),radius=norm(s.Fc)/2,col=colors();
+    const check=window.ObliqueAnalytical.solve(degrees,alphaDegrees);
+    window.ObliqueAnalytical.dashboard(document.getElementById("merchant-result-dashboard"),check);
+    detail.textContent=stateDetail(s);
+    ctx.clearRect(0,0,width,height);
+    const eye=[Math.cos(az)*Math.cos(el),Math.sin(az)*Math.cos(el),Math.sin(el)],right=[-Math.sin(az),Math.cos(az),0],up=cross(eye,right);
+    const scale=.34*Math.min(width,height)/radius;
+    const project=p=>{const q=sub(p,c);return [width/2+scale*dot(q,right),height/2-scale*dot(q,up),dot(q,eye)];};
+    const points=[];
+    function line(a,b,color,lw=1,alpha=1){const p=project(a),q=project(b);ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();ctx.globalAlpha=1;}
+    function circle(u,v,color,lw,alpha=1){for(let k=0;k<120;k++){const t=k*2*Math.PI/120,z=(k+1)*2*Math.PI/120;line(add(c,mul(add(mul(u,Math.cos(t)),mul(v,Math.sin(t))),radius)),add(c,mul(add(mul(u,Math.cos(z)),mul(v,Math.sin(z))),radius)),color,lw,alpha);}}
+    for(let k=0;k<6;k++){const a=k*Math.PI/6;circle([Math.cos(a),Math.sin(a),0],[0,0,1],col.grid,1,.7);}
+    const groups=[{key:'cut',a:s.Ftc,b:sub(s.Fc,s.Ftc)},{key:'rake',a:s.Fv,b:s.Fu},{key:'shear',a:s.Fn,b:s.Fs}];
+    for(const g of groups){if(checks[g.key].checked && norm(g.a)>1e-12 && norm(g.b)>1e-12)circle(unit(g.a),unit(g.b),col[g.key],1.8,.9);}
+    const labelBoxes=[];ctx.font=`${col.size}px ${col.font}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.direction='ltr';
+    function label(text,anchor,dx,dy){
+      const p=project(anchor),tw=ctx.measureText(text).width,th=col.size+4;
+      let x=p[0]+dx,y=p[1]+dy;
+      const candidates=[[dx,dy],...[-18,18,-34,34,-50,50].flatMap(b=>[0,-22,22].map(a=>[dx+a,dy+b]))];
+      for(const [sx,sy] of candidates){const tx=Math.max(tw/2+6,Math.min(width-tw/2-6,p[0]+sx)),ty=Math.max(th/2+6,Math.min(height-th/2-6,p[1]+sy));if(labelBoxes.every(b=>tx+tw/2+4<b[0]||b[2]+4<tx-tw/2||ty+th/2+4<b[1]||b[3]+4<ty-th/2)){x=tx;y=ty;break;}}
+      labelBoxes.push([x-tw/2,y-th/2,x+tw/2,y+th/2]);
+      ctx.globalAlpha=.65;ctx.strokeStyle=col.muted;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(x,y);ctx.stroke();ctx.globalAlpha=1;
+      ctx.fillStyle=col.fg;ctx.fillText(text,x,y);
+    }
+    function arrow(a,b,key,text,dx,dy){
+      if(norm(sub(b,a))<1e-7)return;
+      const p=project(a),q=project(b),v=[q[0]-p[0],q[1]-p[1]],l=Math.hypot(...v);
+      if(l<.1)return;const ux=v[0]/l,uy=v[1]/l,h=Math.min(11,l*.24);
+      line(a,b,col[key],text==='Fc'?3:2.2);
+      ctx.fillStyle=col[key];ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(q[0]-h*ux-4*uy,q[1]-h*uy+4*ux);ctx.lineTo(q[0]-h*ux+4*uy,q[1]-h*uy-4*ux);ctx.closePath();ctx.fill();
+      points.push({text,anchor:mul(add(a,b),.5),dx,dy});
+    }
+    const zero=[0,0,0];
+    arrow(zero,s.Fc,'Fc','Fc',0,-25);
+    if(checks.cut.checked){const t=s.Ftc,b=add(t,s.Ffc);arrow(zero,t,'cut','Ftc',0,24);arrow(t,b,'cut','Ffc',27,0);arrow(b,s.Fc,'cut','Frc',19,-20);}
+    if(checks.rake.checked){arrow(zero,s.Fv,'rake','Fv',0,24);arrow(s.Fv,s.Fc,'rake','Fu',26,0);}
+    if(checks.shear.checked){arrow(zero,s.Fn,'shear','Fn',-22,0);arrow(s.Fn,s.Fc,'shear','Fs',0,-22);}
+    for(const v of [zero,c,s.Fc]){const p=project(v);ctx.fillStyle=col.muted;ctx.beginPath();ctx.arc(p[0],p[1],3,0,2*Math.PI);ctx.fill();}
+    points.forEach(p=>label(p.text,p.anchor,p.dx,p.dy));label('O',zero,-15,21);label('C',c,0,20);
+    canvas.setAttribute('aria-label',`Force sphere at inclination ${degrees.toFixed(1)} degrees and normal rake ${alphaDegrees.toFixed(1)} degrees. Drag to rotate.`);
+  }
+  function stateDetail(s){return `βa = ${(s.b/D2R).toFixed(1)}° · η = ${(s.eta/D2R).toFixed(2)}° · φn = ${(s.pn/D2R).toFixed(2)}° · Ffc = ${s.Fc[2].toFixed(2)} N · Frc = ${dot(s.Fc,s.er).toFixed(2)} N`;}
+  function setParameters(degrees,alphaDegrees){
+    if(!Number.isFinite(degrees)||!Number.isFinite(alphaDegrees))return;
+    inclination=Math.max(-60,Math.min(60,degrees));rake=Math.max(-10,Math.min(25,alphaDegrees));
+    number.value=inclination;slider.value=inclination;value.textContent=inclination.toFixed(1)+'°';
+    alphaNumber.value=rake;alphaSlider.value=rake;alphaValue.textContent=rake.toFixed(1)+'°';
+    detail.textContent=stateDetail(solve(inclination,rake));
+    if(frame)cancelAnimationFrame(frame);
+    if(reduced.matches){draw(inclination,rake);return;}
+    const start=performance.now(),from=displayed,to=inclination,fromAlpha=displayedAlpha,toAlpha=rake;
+    function step(now){const t=Math.min(1,(now-start)/230),ease=t*t*(3-2*t);draw(from+(to-from)*ease,fromAlpha+(toAlpha-fromAlpha)*ease);if(t<1)frame=requestAnimationFrame(step);else frame=0;}
+    frame=requestAnimationFrame(step);
+  }
+  function setInclination(degrees){setParameters(degrees,rake);}
+  function setAlpha(degrees){setParameters(inclination,degrees);}
+  slider.addEventListener('input',()=>setInclination(Number(slider.value)));
+  number.addEventListener('change',()=>setInclination(Number(number.value)));
+  alphaSlider.addEventListener('input',()=>setAlpha(Number(alphaSlider.value)));
+  alphaNumber.addEventListener('change',()=>setAlpha(Number(alphaNumber.value)));
+  for(const input of Object.values(checks))input.addEventListener('change',()=>draw());
+  window.addEventListener('oblique-input-change',()=>draw());
+  canvas.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag)return;az-=(e.clientX-drag[0])*.007;el=Math.max(-1.45,Math.min(1.45,el+(e.clientY-drag[1])*.007));drag=[e.clientX,e.clientY];draw();});
+  function release(){drag=null;}
+  canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+  function resize(){width=Math.max(280,root.getBoundingClientRect().width);height=Math.max(300,Math.min(480,width*.73));const dpr=window.devicePixelRatio||1;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.height=height+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+  const observer=new ResizeObserver(resize);observer.observe(root);
+  const themeObserver=new MutationObserver(()=>draw());themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+  resize();detail.textContent=stateDetail(solve(25,10));
+  root.merchantTest={solve,setInclination,setAlpha,setParameters,draw,getDisplayed:()=>displayed,getDisplayedAlpha:()=>displayedAlpha};
+})();
+</script>
+</section>
+
+<details class="combined-guide">
+  <summary>How to use the models</summary>
+  <p>Adjust inclination <b>i</b> and normal rake <b>αn</b> independently in either tab. Change βa, τs, b and h using the shared panel above. Drag a model to rotate it. In the first tab, use the mouse wheel to zoom and the view selector to restore a preset. Settings are retained when switching tabs; the two tabs have independent controls.</p>
+  <p>In the first tab, <b>Top (workpiece Xw–Yw plane)</b> makes the cutting-edge inclination easy to inspect. The rectangular stock, its frame <b>(Xw,Yw,Zw)</b> and the cutting direction <b>V</b> are stationary. The frame <b>(x,y,z)</b> is defined exactly as in Altintas Fig. 2.5: <b>y</b> lies along the cutting edge, <b>x</b> lies on the cut surface perpendicular to that edge, and <b>z</b> is the surface normal. The tool-local frame turns by −i relative to the workpiece axes. The <b>Normal to tool plane Pn</b> view shows rake-face changes with αn. You can independently toggle the two coordinate frames.</p>
+  <p>The velocity arrows follow <b>V + Vs = Vc</b>. In the velocity triangle, <b>Vs (O)</b> is a translated copy of the shear-velocity vector, drawn from the origin.</p>
+</details>
+<details class="combined-guide" open>
+  <summary>Model notes, notation and reference</summary>
+  <p><b>Reference frames:</b> Workpiece edges define stationary world axes Xw, Yw, Zw. The book’s local axes x, y, z turn with the tool: y is tangent to the cutting edge, x is normal to the edge but tangent to the machined surface, and z is perpendicular to that surface. The velocity V remains along Xw as the tool rotates. These two frames coincide only when i = 0°. World-to-local conversion is explicitly applied to the first three-dimensional view. The second tab plots force vectors in the tool-local frame.</p>
+  <p>This educational visualization uses an ideal sharp, straight cutting edge and a single shear plane. The chip-flow and shear angles use an algebraic quartic reduction of the five-angle maximum-shear-stress closure (Eqs. 2.48–2.52). The original unsquared scalar relation and the original five equations are independently evaluated to select and verify the admissible root. The average friction angle βa is adjustable. Tool and workpiece dimensions are schematic. Edge-radius forces and chip deformation are outside the model.</p>
+  <p>The force sphere is a <b>geometric extension of the Merchant circle</b>: orthogonal force pairs form right triangles inscribed in a sphere whose diameter is the resultant vector. In the second tab, <b>C = Fc/2</b> is the center position and the radius is <b>|Fc|/2</b>. The actual shear-force contribution is calculated from <b>τs bh</b> and Eq. (2.53); force-sphere drawing scales to its current resultant force magnitude. The first tab uses normalized force-vector directions and velocity ratios.</p>
+  <p><b>Force directions:</b> the first tab shows forces on the chip, with resultant <b>R</b>; the second shows forces on the tool, with resultant <b>Fc</b>. Corresponding vectors therefore point in opposite directions.</p>
+  <dl class="combined-notation">
+    <dt>i / αn / η / φn</dt><dd>Inclination / normal rake / chip-flow angle / normal shear angle.</dd>
+    <dt>Ftc / Ffc / Frc</dt><dd>Resultant components along the cutting velocity / normal to the work surface / in the work surface and perpendicular to the cutting velocity. The second tab reports signed components for Ffc and Frc.</dd>
+    <dt>Fv / Fu</dt><dd>Rake-face normal force / friction force.</dd>
+    <dt>Fn / Fs</dt><dd>Shear-plane normal force / shear force.</dd>
+  </dl>
+  <p><b>Numerical methods:</b> The primary angle solution is obtained by bracketing real roots of the <b>quartic polynomial in tan η</b> and rejecting roots that fail the original unsquared equation. A separate bisection solver directly evaluates the <b>original velocity Eq. (2.50)</b>, with Eqs. (2.48), (2.49), (2.51), and (2.52) used to recover the remaining angles. Force components are cross-checked against Eqs. (2.53) and (2.59). This is a comparison with a numerical solution of the book’s equations, not a reimplementation of its relaxation scheme.</p>
+  <p><b>Reference:</b> Yusuf Altintas, <i>Manufacturing Automation: Metal Cutting Mechanics, Machine Tool Vibrations, and CNC Design</i>, 2nd ed., Cambridge University Press, 2012, Chapter 2.</p>
+  <p>Open this HTML file directly in a current desktop browser such as Microsoft Edge or Google Chrome. All code and graphics are included; no internet connection or installation is required. This is an algebraic consistency demonstration, not experimental validation and not a claim of improved physical accuracy. The admissible shear branch requires 0° &lt; φn &lt; 90° and Fc &gt; 0; otherwise the force values are marked N/A. It does not include edge-radius, ploughing, flank, chip curl, temperature, or nonuniform shear-zone contributions.</p>
+</details>
+<script>
+(() => {
+  const tabs = Array.from(document.querySelectorAll('.combined-tab'));
+  const panels = tabs.map(tab => document.getElementById(tab.getAttribute('aria-controls')));
+  function selectPanel(id, focus = false) {
+    const index = tabs.findIndex(tab => tab.dataset.panel === id);
+    if (index < 0) return;
+    tabs.forEach((tab, n) => {
+      const selected = n === index;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      panels[n].hidden = !selected;
+    });
+    if (focus) tabs[index].focus();
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectPanel(tab.dataset.panel));
+    tab.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = tabs.length - 1;
+      else return;
+      event.preventDefault();
+      selectPanel(tabs[next].dataset.panel, true);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
