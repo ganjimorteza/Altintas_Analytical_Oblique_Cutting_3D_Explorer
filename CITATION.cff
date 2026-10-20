@@ -1,9 +1,23 @@
 cff-version: 1.2.0
-message: "If you use this demonstration, please cite its accompanying technical note or versioned archive once published."
+message: "If you use this software, please cite the versioned Zenodo record associated with the release."
 title: "Analytical Oblique Cutting: Quartic Reduction and Interactive 3D Explorer"
 type: software
 authors:
   - family-names: Ganji
     given-names: Morteza
     orcid: "https://orcid.org/0009-0003-3601-4308"
-version: "0.1.0-draft"
+version: "0.1.0"
+repository-code: "https://github.com/ganjimorteza/Altintas_Analytical_Oblique_Cutting_3D_Explorer"
+abstract: >-
+  A reproducible computational demonstration of an algebraic quartic reduction
+  of the five-angle maximum-shear-stress oblique-cutting system in Section 2.5
+  of Altintas (2012), together with explicit cutting-force expressions,
+  numerical consistency checks, and an offline interactive 3D visualization.
+  This software does not claim independent physical validation or literature priority.
+keywords:
+  - oblique cutting
+  - machining mechanics
+  - chip-flow angle
+  - cutting forces
+  - analytic reduction
+  - three-dimensional visualization
